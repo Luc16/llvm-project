@@ -28,6 +28,7 @@
 
 # Nested build directory
 /build*
+/blas_test*
 
 #==============================================================================#
 # Explicit files to ignore (only matches one).
