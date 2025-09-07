@@ -1,3 +1,6 @@
+#ifndef LIB_DIALECT_BLIR_BLIRDialect_TD_
+#define LIB_DIALECT_BLIR_BLIRDialect_TD_
+
 include "mlir/IR/DialectBase.td"
 include "mlir/Dialect/LLVMIR/LLVMOpBase.td"
 
@@ -13,3 +16,4 @@ def BLIR_Dialect : Dialect {
   }]; 
 }
 
+#endif // LIB_DIALECT_BLIR_BLIRDialect_TD_
