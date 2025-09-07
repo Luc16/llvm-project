@@ -1,4 +1,4 @@
-#include "mlir/Dialect/BLIR/BLIROps.h"
+#include "mlir/Dialect/BLIR/IR/BLIROps.h"
 
 
 using namespace mlir;

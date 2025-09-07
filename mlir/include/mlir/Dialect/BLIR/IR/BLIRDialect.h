@@ -6,7 +6,7 @@
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/DialectImplementation.h"
 
-#include "mlir/Dialect/BLIR/BLIRDialect.h.inc"
+#include "mlir/Dialect/BLIR/IR/BLIRDialect.h.inc"
 
 
 #endif  // LIB_DIALECT_BLIR_BLIRDIALECT_H_

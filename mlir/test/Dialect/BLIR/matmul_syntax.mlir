@@ -17,7 +17,7 @@ func.func @test_matmul_full(%arg0: memref<4x4xf32>, %arg1: memref<4x4xf32>, %arg
 }
 
 func.func @test_matmul_int(%arg0: memref<3x3xi32>, %arg1: memref<3x3xi32>, %arg2: memref<3x3xi32>) -> memref<3x3xi32> {
-	blir.matmul %arg0, %arg1, %arg2 alpha=1.0 : memref<3x3xi32>, memref<3x3xi32> -> memref<3x3xi32>
+	blir.matmul %arg0, %arg1, %arg2 alpha=5.0 : memref<3x3xi32>, memref<3x3xi32> -> memref<3x3xi32>
 		return %arg2 : memref<3x3xi32>
 }
 

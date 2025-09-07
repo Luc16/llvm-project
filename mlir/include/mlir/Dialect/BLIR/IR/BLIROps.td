@@ -16,9 +16,9 @@ def BLIR_MatMulOp : Op<BLIR_Dialect, "matmul", []> {
   }];
 
   let arguments = (ins
-    AnyType:$lhs,
-    AnyType:$rhs,
-	AnyType:$output,
+    AnyMemRef:$lhs,
+    AnyMemRef:$rhs,
+	AnyMemRef:$output,
     DefaultValuedAttr<BoolAttr, "false">:$transa,
     DefaultValuedAttr<BoolAttr, "false">:$transb,
     DefaultValuedAttr<F32Attr, "1.0">:$alpha,

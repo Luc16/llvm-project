@@ -15,7 +15,7 @@
 
 #include "mlir/Dialect/AMDGPU/IR/AMDGPUDialect.h"
 #include "mlir/Dialect/AMX/AMXDialect.h"
-#include "mlir/Dialect/BLIR/BLIRDialect.h"
+#include "mlir/Dialect/BLIR/IR/BLIRDialect.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Affine/IR/ValueBoundsOpInterfaceImpl.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"

@@ -20,6 +20,7 @@
 #include "mlir/Dialect/ArmSME/Transforms/Passes.h"
 #include "mlir/Dialect/ArmSVE/Transforms/Passes.h"
 #include "mlir/Dialect/Async/Passes.h"
+#include "mlir/Dialect/BLIR/Transforms/Passes.h"
 #include "mlir/Dialect/Bufferization/Pipelines/Passes.h"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/EmitC/Transforms/Passes.h"
@@ -66,6 +67,7 @@ void mlir::registerAllPasses() {
   acc::registerOpenACCPasses();
   affine::registerAffinePasses();
   amdgpu::registerAMDGPUPasses();
+  blir::registerBLIRPasses();
   registerAsyncPasses();
   arith::registerArithPasses();
   bufferization::registerBufferizationPasses();
