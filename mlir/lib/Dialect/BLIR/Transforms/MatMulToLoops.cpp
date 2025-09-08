@@ -5,8 +5,10 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/IR/TypeRange.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/Support/raw_ostream.h"
+#include "mlir/Dialect/Arith/IR/Arith.h" 
 
 namespace mlir::blir {
 #define GEN_PASS_DEF_BLIRMATMULTOLOOPSPASS
@@ -16,30 +18,124 @@ namespace mlir::blir {
 using namespace mlir;
 using namespace mlir::blir;
 
+static std::string createMatMulMangledFunctionName(const TypeRange &operands,
+											const TypeRange &results) {
+	std::string mangledFuncName;
+    llvm::raw_string_ostream os(mangledFuncName);
+    os << "blir_matmul";
+	for (Type type : operands) {
+      os << "_";
+      // Check if the type is a MemRefType
+      if (auto memref = dyn_cast<MemRefType>(type)) {
+        // It is a memref, so manually construct the name from its parts.
+        auto shape = memref.getShape();
+        for (size_t i = 0; i < shape.size(); ++i) {
+          if (ShapedType::isDynamic(shape[i])) {
+            os << "?"; // Use '?' for dynamic dimensions
+          } else {
+            os << shape[i];
+          }
+          if (i < shape.size() - 1) {
+            os << "x";
+          }
+        }
+        os << "x" << memref.getElementType();
+      } else {
+        // It's not a memref (e.g., i1, f32), so print it normally.
+        os << type;
+      }
+    }
+    // (Optional) Include result types if they can vary.
+    for (Type type : results) {
+      os << "_" << type;
+    }
+
+    // 3. Sanitize the name to make it a valid symbol.
+    // MLIR symbol names can't contain characters like '<', '>', ',', or ' '.
+    std::replace(mangledFuncName.begin(), mangledFuncName.end(), '<', '_');
+    std::replace(mangledFuncName.begin(), mangledFuncName.end(), '>', '_');
+    std::replace(mangledFuncName.begin(), mangledFuncName.end(), ',', '_');
+    std::replace(mangledFuncName.begin(), mangledFuncName.end(), ' ', '_');
+
+    // std::replace(mangledFuncName.begin(), mangledFuncName.end(), 'x', '_'); // For shapes like 4x4
+	
+	return mangledFuncName;
+}
+
+
+struct MatMulToLoopsPattern : OpRewritePattern<blir::MatMulOp> {
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(blir::MatMulOp matMulOp,
+								PatternRewriter &rewriter) const override {
+
+	auto module = matMulOp->getParentOfType<ModuleOp>();
+    if (!module) {
+      return failure(); // Should not happen in well-formed IR
+    }
+	Location loc = matMulOp.getLoc();
+
+	auto i1Type = rewriter.getI1Type();
+    auto f32Type = rewriter.getF32Type();
+
+
+	auto operandTypes = matMulOp.getOperandTypes();
+	auto resultTypes = matMulOp->getResultTypes();
+	SmallVector<Type, 7> operandTypesVec(operandTypes);
+	operandTypesVec.push_back(i1Type);    
+    operandTypesVec.push_back(i1Type);    
+    operandTypesVec.push_back(f32Type);   
+    operandTypesVec.push_back(f32Type);
+
+	std::string funcName = createMatMulMangledFunctionName(operandTypes, resultTypes);
+    auto funcOp = module.lookupSymbol<func::FuncOp>(funcName);
+
+
+	// TODO: Make this thread-safe
+	if (!funcOp) {
+		auto funcType = rewriter.getFunctionType(operandTypesVec, resultTypes);
+
+		OpBuilder::InsertionGuard guard(rewriter);
+		rewriter.setInsertionPointToStart(module.getBody());
+
+		funcOp = rewriter.create<func::FuncOp>(loc, funcName, funcType);
+		funcOp.setPrivate();
+
+		Block *entryBlock = rewriter.createBlock(&funcOp.getBody(), {}, operandTypesVec,
+				SmallVector<Location>(operandTypesVec.size(), loc));
+
+		// Set insertion point inside the new function's block to add the return.
+		rewriter.setInsertionPointToStart(entryBlock);
+		// TODO: Implement the matrix multiplication loops here.
+		rewriter.create<func::ReturnOp>(loc, ValueRange{});
+	}
+
+
+	rewriter.setInsertionPoint(matMulOp);
+
+	SmallVector<Value, 7> callOperands(matMulOp.getOperands());
+	callOperands.push_back(rewriter.create<arith::ConstantOp>(loc, i1Type, matMulOp.getTransaAttr()));
+	callOperands.push_back(rewriter.create<arith::ConstantOp>(loc, i1Type, matMulOp.getTransbAttr()));
+	callOperands.push_back(rewriter.create<arith::ConstantOp>(loc, f32Type, matMulOp.getAlphaAttr()));
+	callOperands.push_back(rewriter.create<arith::ConstantOp>(loc, f32Type, matMulOp.getBetaAttr()));
+
+	auto funcCall = rewriter.create<func::CallOp>(loc, funcOp, callOperands);
+	rewriter.replaceOp(matMulOp, funcCall);
+
+	return success();
+  }
+
+};
+
 
 struct BLIRMatMulToLoopsPass final
     : blir::impl::BLIRMatMulToLoopsPassBase<BLIRMatMulToLoopsPass> {
   void runOnOperation() override {
-    func::FuncOp f = getOperation();
-	f.walk([&](blir::MatMulOp op) {
-		// Get the operands of your matmul op
-		mlir::Value lhs = op.getLhs();
-		mlir::Value rhs = op.getRhs();
-		mlir::Value output = op.getOutput();
-		bool isTransposedA = op.getTransa();
-		bool isTransposedB = op.getTransb();
-		// Get the value as an APFloat
-		llvm::APFloat alphaAP = op.getAlpha();
-		llvm::APFloat betaAP = op.getBeta();
-
-		// Convert to a standard C++ double
-		double alpha = alphaAP.convertToDouble();
-		double beta = betaAP.convertToDouble();
-		
-
-		op.emitRemark() << "\n\nFound a MatMulOp:\n\tOperand A has type: " << lhs.getType() << "\n\tOperand B has type: " << rhs.getType() << "\n\tOperand C has type: " << output.getType() << "\n\tTransA: " << (isTransposedA ? "true" : "false") << "\n\tTransB: " << (isTransposedB ? "true" : "false") << "\n\tAlpha: " << alpha << "\n\tBeta: " << beta << "\n";
-
-	});
+	RewritePatternSet patterns(&getContext());
+	patterns.add<MatMulToLoopsPattern>(patterns.getContext());
+	if (failed(applyPatternsGreedily(getOperation(), std::move(patterns)))) {
+	  signalPassFailure();
+	}
 
   }
 };
@@ -127,22 +223,3 @@ struct BLIRMatMulToLoopsPass final
 //     return success();
 //   }
 // };
-//
-// struct BLIRMatMulToLoopsPass
-//     : public impl::BLIRMatMulToLoopsPassBase<BLIRMatMulToLoopsPass> {
-//   void runOnOperation() override {
-//     auto func = getOperation();
-//     MLIRContext *context = &getContext();
-//
-//     RewritePatternSet patterns(context);
-//     patterns.add<MatMulToLoopsPattern>(context);
-//
-//     if (failed(applyPatternsAndFoldGreedily(func, std::move(patterns))))
-//       signalPassFailure();
-//   }
-// };
-//
-//
-// std::unique_ptr<Pass> mlir::blir::createMatMulToLoopsPass() {
-//   return std::make_unique<BLIRMatMulToLoopsPass>();
-// }
