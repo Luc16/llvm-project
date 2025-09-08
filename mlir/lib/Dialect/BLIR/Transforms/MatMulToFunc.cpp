@@ -134,13 +134,13 @@ struct MatMulToFuncPattern : OpRewritePattern<blir::MatMulOp> {
 		auto outerLoop = rewriter.create<affine::AffineForOp>(loc, 0, M, 1);
 		rewriter.setInsertionPointToStart(outerLoop.getBody());
 
-		// for j = 0 to N
-		auto middleLoop = rewriter.create<affine::AffineForOp>(loc, 0, N, 1);
-		rewriter.setInsertionPointToStart(middleLoop.getBody());
-
 		// for k = 0 to K
 		auto innerLoop = rewriter.create<affine::AffineForOp>(loc, 0, K, 1);
 		rewriter.setInsertionPointToStart(innerLoop.getBody());
+
+		// for j = 0 to N
+		auto middleLoop = rewriter.create<affine::AffineForOp>(loc, 0, N, 1);
+		rewriter.setInsertionPointToStart(middleLoop.getBody());
 
 		// Corpo do loop: output[i][j] += lhs[i][k] * rhs[k][j]
 		Value i = outerLoop.getInductionVar();
