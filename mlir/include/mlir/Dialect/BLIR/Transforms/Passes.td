@@ -3,7 +3,7 @@
 
 include "mlir/Pass/PassBase.td"
 
-def BLIRMatMulToLoopsPass : Pass<"blir-matmul-to-loops", "func::FuncOp"> {
+def BLIRMatMulToFuncPass : Pass<"blir-matmul-to-func", "func::FuncOp"> {
   let summary = "Convert BLIR matrix multiplication operations to loop nests";
   let description = [{
     This pass identifies BLIR matrix multiplication operations and lowers them

@@ -1,4 +1,4 @@
-// RUN: mlir-opt %s --blir-matmul-to-loops | FileCheck %s
+// RUN: mlir-opt %s --blir-matmul-to-func | FileCheck %s
 
 // CHECK-LABEL: func @test_matmul_basic
 // CHECK-NOT:   blir.matmul

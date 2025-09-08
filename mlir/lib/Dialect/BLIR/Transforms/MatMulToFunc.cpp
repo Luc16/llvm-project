@@ -11,7 +11,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h" 
 
 namespace mlir::blir {
-#define GEN_PASS_DEF_BLIRMATMULTOLOOPSPASS
+#define GEN_PASS_DEF_BLIRMATMULTOFUNCPASS
 #include "mlir/Dialect/BLIR/Transforms/Passes.h.inc"
 } // namespace mlir::blir
 
@@ -63,7 +63,7 @@ static std::string createMatMulMangledFunctionName(const TypeRange &operands,
 }
 
 
-struct MatMulToLoopsPattern : OpRewritePattern<blir::MatMulOp> {
+struct MatMulToFuncPattern : OpRewritePattern<blir::MatMulOp> {
   using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(blir::MatMulOp matMulOp,
@@ -106,7 +106,10 @@ struct MatMulToLoopsPattern : OpRewritePattern<blir::MatMulOp> {
 
 		// Set insertion point inside the new function's block to add the return.
 		rewriter.setInsertionPointToStart(entryBlock);
-		// TODO: Implement the matrix multiplication loops here.
+
+		
+
+
 		rewriter.create<func::ReturnOp>(loc, ValueRange{});
 	}
 
@@ -128,11 +131,11 @@ struct MatMulToLoopsPattern : OpRewritePattern<blir::MatMulOp> {
 };
 
 
-struct BLIRMatMulToLoopsPass final
-    : blir::impl::BLIRMatMulToLoopsPassBase<BLIRMatMulToLoopsPass> {
+struct BLIRMatMulToFuncPass final
+    : blir::impl::BLIRMatMulToFuncPassBase<BLIRMatMulToFuncPass> {
   void runOnOperation() override {
 	RewritePatternSet patterns(&getContext());
-	patterns.add<MatMulToLoopsPattern>(patterns.getContext());
+	patterns.add<MatMulToFuncPattern>(patterns.getContext());
 	if (failed(applyPatternsGreedily(getOperation(), std::move(patterns)))) {
 	  signalPassFailure();
 	}
@@ -143,7 +146,7 @@ struct BLIRMatMulToLoopsPass final
 
 //
 //
-// struct MatMulToLoopsPattern : public OpRewritePattern<MatMulOp> {
+// struct MatMulToFuncPattern : public OpRewritePattern<MatMulOp> {
 //   using OpRewritePattern<MatMulOp>::OpRewritePattern;
 //
 //   LogicalResult matchAndRewrite(MatMulOp op,

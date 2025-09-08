@@ -10,7 +10,7 @@
 namespace mlir {
 namespace blir {
 
-#define GEN_PASS_DECL_BLIRMATMULTOLOOPSPASS
+#define GEN_PASS_DECL_BLIRMATMULTOFUNCPASS
 #define GEN_PASS_REGISTRATION
 #include "mlir/Dialect/BLIR/Transforms/Passes.h.inc"
 
