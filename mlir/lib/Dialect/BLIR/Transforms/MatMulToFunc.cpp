@@ -107,8 +107,61 @@ struct MatMulToFuncPattern : OpRewritePattern<blir::MatMulOp> {
 		// Set insertion point inside the new function's block to add the return.
 		rewriter.setInsertionPointToStart(entryBlock);
 
-		
+		Value lhsMemRef = entryBlock->getArgument(0);
+		Value rhsMemRef = entryBlock->getArgument(1);
+		Value outputMemRef = entryBlock->getArgument(2);
 
+		auto lhsType = dyn_cast<MemRefType>(lhsMemRef.getType());
+		auto rhsType = dyn_cast<MemRefType>(rhsMemRef.getType());
+		// auto outputType = dyn_cast<MemRefType>(entryBlock->getArgument(2).getType());
+
+		// Getting dimensions (assuming 2D matrices)
+		int64_t M = lhsType.getShape()[0];
+		int64_t K = lhsType.getShape()[1];
+		int64_t N = rhsType.getShape()[1];
+
+
+		// Creating constants for loop bounds
+		// Value cM = rewriter.create<arith::ConstantIndexOp>(loc, M);
+		// Value cK = rewriter.create<arith::ConstantIndexOp>(loc, K);
+		// Value cN = rewriter.create<arith::ConstantIndexOp>(loc, N);
+		// Value c0 = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+		// Value c1 = rewriter.create<arith::ConstantIndexOp>(loc, 1);
+
+
+		// Criar os loops aninhados para multiplicação de matrizes
+		// for i = 0 to M
+		auto outerLoop = rewriter.create<affine::AffineForOp>(loc, 0, M, 1);
+		rewriter.setInsertionPointToStart(outerLoop.getBody());
+
+		// for j = 0 to N
+		auto middleLoop = rewriter.create<affine::AffineForOp>(loc, 0, N, 1);
+		rewriter.setInsertionPointToStart(middleLoop.getBody());
+
+		// for k = 0 to K
+		auto innerLoop = rewriter.create<affine::AffineForOp>(loc, 0, K, 1);
+		rewriter.setInsertionPointToStart(innerLoop.getBody());
+
+		// Corpo do loop: output[i][j] += lhs[i][k] * rhs[k][j]
+		Value i = outerLoop.getInductionVar();
+		Value j = middleLoop.getInductionVar();
+		Value k = innerLoop.getInductionVar();
+
+		// Carregar valores
+		Value lhsVal = rewriter.create<affine::AffineLoadOp>(loc, lhsMemRef, ValueRange{i, k});
+		Value rhsVal = rewriter.create<affine::AffineLoadOp>(loc, rhsMemRef, ValueRange{k, j});
+		Value outputVal = rewriter.create<affine::AffineLoadOp>(loc, outputMemRef, ValueRange{i, j});
+
+		// Multiplicar
+		Value mul = rewriter.create<arith::MulFOp>(loc, lhsVal, rhsVal);
+
+		// Somar com o valor atual
+		Value add = rewriter.create<arith::AddFOp>(loc, outputVal, mul);
+
+		// // Armazenar o resultado
+		rewriter.create<affine::AffineStoreOp>(loc, add, outputMemRef, ValueRange{i, j});
+
+		rewriter.setInsertionPointToEnd(entryBlock);
 
 		rewriter.create<func::ReturnOp>(loc, ValueRange{});
 	}
