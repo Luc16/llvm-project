@@ -129,7 +129,6 @@ struct MatMulToFuncPattern : OpRewritePattern<blir::MatMulOp> {
 		// Value c1 = rewriter.create<arith::ConstantIndexOp>(loc, 1);
 
 
-		// Criar os loops aninhados para multiplicação de matrizes
 		// for i = 0 to M
 		auto outerLoop = rewriter.create<affine::AffineForOp>(loc, 0, M, 1);
 		rewriter.setInsertionPointToStart(outerLoop.getBody());
@@ -142,23 +141,30 @@ struct MatMulToFuncPattern : OpRewritePattern<blir::MatMulOp> {
 		auto middleLoop = rewriter.create<affine::AffineForOp>(loc, 0, N, 1);
 		rewriter.setInsertionPointToStart(middleLoop.getBody());
 
-		// Corpo do loop: output[i][j] += lhs[i][k] * rhs[k][j]
 		Value i = outerLoop.getInductionVar();
 		Value j = middleLoop.getInductionVar();
 		Value k = innerLoop.getInductionVar();
 
-		// Carregar valores
 		Value lhsVal = rewriter.create<affine::AffineLoadOp>(loc, lhsMemRef, ValueRange{i, k});
 		Value rhsVal = rewriter.create<affine::AffineLoadOp>(loc, rhsMemRef, ValueRange{k, j});
 		Value outputVal = rewriter.create<affine::AffineLoadOp>(loc, outputMemRef, ValueRange{i, j});
 
-		// Multiplicar
-		Value mul = rewriter.create<arith::MulFOp>(loc, lhsVal, rhsVal);
+		Type elementType = lhsVal.getType();
+		Value mul, add;
 
-		// Somar com o valor atual
-		Value add = rewriter.create<arith::AddFOp>(loc, outputVal, mul);
+		if (elementType.isFloat()) {
+			mul = rewriter.create<arith::MulFOp>(loc, lhsVal, rhsVal);
+			add = rewriter.create<arith::AddFOp>(loc, outputVal, mul);
+		} 
+		else if (elementType.isInteger()) {
+			mul = rewriter.create<arith::MulIOp>(loc, lhsVal, rhsVal);
+			add = rewriter.create<arith::AddIOp>(loc, outputVal, mul);
+		} 
+		else {
+			// Handle error, e.g., by returning a failure or asserting.
+			assert(false && "Unsupported type for multiplication and addition");
+		}
 
-		// // Armazenar o resultado
 		rewriter.create<affine::AffineStoreOp>(loc, add, outputMemRef, ValueRange{i, j});
 
 		rewriter.setInsertionPointToEnd(entryBlock);
